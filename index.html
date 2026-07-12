@@ -46,7 +46,7 @@
     <script>
         fetch('cgjdata.csv')
             .then(function (response) {
-                return response.txt();
+                return response.text();
             })
             .then(function (text) {
                 document.getElementById('output').textContent = text;

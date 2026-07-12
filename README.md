@@ -1,0 +1,1 @@
+This is a summary of all Santa Cruz County Civil Grand Jury reports since 2016. All reports were categorized by hand. There might be mistakes. Absent are the Honoring Commitment reports which look back at past reports to examine county action on prommised changes.

@@ -5,10 +5,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CGJ Report Charts</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: #1a1a1a;
+            background: #fafafa;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.5;
+        }
+
+        h1 {
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-top: 0;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+    </style>
 </head>
 
 <body>
     <h1>CGJ Report Charts</h1>
+    <p class="subtitle">Explore CGJ data</p>
+
+    <div class="panel">
+        <pre id="output">Loading..</pre>
+    </div>
+
+    <script>
+        fetch('cgjdata.csv')
+            .then(function (response) {
+                return response.txt();
+            })
+            .then(function (text) {
+                document.getElementById('output').textContent = text;
+            })
+            .catch(function (error) {
+                document.getElementById('output').textContent = 'Error: ' + error;
+            });
+    </script>
 </body>
 
 </html>

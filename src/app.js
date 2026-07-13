@@ -10,7 +10,8 @@ var DATA_FILE_NAME = 'cgjdata.csv';
 var VIEWS = {
     year:     { label: 'Year', columns: [0] },
     category: { label: 'Category', columns: [2, 3] },
-    entity:   { label: 'Entity', columns: [4, 5] }
+    entity:   { label: 'Entity', columns: [4, 5] },
+    location: { label: 'Location', columns: [6] }
 };
 
 // Code
@@ -49,25 +50,38 @@ function buildDropdown() {
         option.textContent = VIEWS[key].label; // e.g. 'Entity'
         select.appendChild(option);
     });
+
     // when user picks a different option, redraw
     select.addEventListener('change', draw);
+
+    document.getElementById('exclude-bos').addEventListener('change', draw);
+
 }
 
 function draw() {
     var key = document.getElementById('view-select').value; 
     var view = VIEWS[key];
-    var counts = countAcrossColumns(allRows, view.columns);
+
+    // show exclude BOS checkbox when on 'entity'
+    var wrap = document.getElementById('exclude-bos-wrap');
+    wrap.hidden = ( key !== 'entity');
+
+    // read if box is checked
+    var excludeBOS = document.getElementById('exclude-bos').checked;
+
+    var counts = countAcrossColumns(allRows, view.columns, excludeBOS);
     renderChart(counts.labels, counts.values, view.label);
 }
 
-function countAcrossColumns(rows, colIndexes) {
+function countAcrossColumns(rows, colIndexes, excludeBOS) {
     var tally = [];
     var order = [];
 
     rows.slice(1).forEach(function (cells) { // skip header row
         colIndexes.forEach(function (colIndex) { // look at each combined column
             var value = cells[colIndex];
-            if (value === undefined || value === '') return;
+            if (value === undefined || value === '' || 
+                (excludeBOS && value === 'Board of Supervisors')) return;
             if (!(value in tally)) { tally[value] = 0; order.push(value); }
             tally[value] += 1;
         });

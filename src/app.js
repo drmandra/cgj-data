@@ -24,6 +24,7 @@ fetch('data/' + DATA_FILE_NAME)
     .then(function (text) {
         allRows = parseCSV(text);
         buildDropdown();
+        applyURL();
         draw();
     })
     .catch(function (error) {
@@ -68,6 +69,8 @@ function draw() {
 
     // read if box is checked
     var excludeBOS = document.getElementById('exclude-bos').checked;
+
+    updateURL(key, excludeBOS);
 
     var counts = countAcrossColumns(allRows, view.columns, excludeBOS);
     renderChart(counts.labels, counts.values, view.label);
@@ -135,5 +138,33 @@ function renderTable(rows) {
 
     var output = document.getElementById('output');
     output.innerHTML = ''; // clear our 'Loading..' text
-    output.appendChild(table)
+    output.appendChild(table);
+}
+
+// Write: put the current control state in address bar
+function updateURL(key, excludeBOS) {
+    var params = new URLSearchParams();
+    params.set('view', key);
+
+    if (excludeBOS) params.set('excludeBOS', 'true');
+    var newURL = window.location.pathname + '?' + params.toString()
+    history.replaceState(null, '', newURL);
+}
+
+// Read the url and pull save state out of url
+function readURL() {
+    var params = new URLSearchParams(window.location.search);
+    return {
+        view: params.get('view'),
+        excludeBOS: params.get('excludeBOS') === 'true'
+    };
+}
+
+// Set dropdown/checkbox to match URL
+function applyURL() {
+    var state = readURL();
+    if (state.view && VIEWS[state.view]) { // make sure it's a real view
+        document.getElementById('view-select').value = state.view;
+    }
+    document.getElementById('exclude-bos').checked = state.excludeBOS;
 }

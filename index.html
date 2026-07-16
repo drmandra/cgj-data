@@ -16,12 +16,24 @@
         <label for="view-select">Group by:</label>
         <select id="view-select"></select>
 
-        <div class="controls" id="exclude-bos-wrap" hidden>
-            <label>
-                <input type="checkbox" id="exclude-bos" />
-                Exclude Board of Supervisors
-            </label>
-        </div>
+        <label for="split-select">Split by:</label>
+        <select id="split-select"></select>
+
+        <span id="stack-wrap" hidden>
+            <label for="stack-select">Display:</label>
+            <select id="stack-select">
+                <option value="grouped">Side by side:</option>
+                <option value="stacked">Stacked</option>
+                <option value="percent">100%</option>
+            </select>
+        </span>
+    </div>
+
+    <div class="controls" id="exclude-bos-wrap" hidden>
+        <label>
+            <input type="checkbox" id="exclude-bos" />
+            Exclude Board of Supervisors
+        </label>
     </div>
 
     <div class="panel">

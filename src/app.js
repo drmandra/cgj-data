@@ -15,21 +15,26 @@ var VIEWS = {
 };
 var COLORS = ['#4a7ba6', '#c4531d', '#3f8f5c', '#8a6d1f', '#6b4e8a',
               '#b03a5b', '#2f7f8f', '#7a7a3d', '#a0522d', '#4d4d8f'];
+var YEAR_COL = 0;
 
 // Code
 var chart = null;   // remember current chart so we can replace later
 var allRows = null; // holds the parsed CSV so everything can be redrawn without reloading the CSV
+var allYears = [];
 
 // load data once
 fetch('data/' + DATA_FILE_NAME)
     .then(function (response) { return response.text(); })
     .then(function (text) {
         allRows = parseCSV(text);
+        allYears = collectYears(allRows);
         buildDropdown();
+        buildYearDropdowns();
         applyURL();
         draw();
     })
     .catch(function (error) {
+        console.error(error);
         document.getElementById('error').textContent = 'Error: ' + error;
     });
 
@@ -42,6 +47,41 @@ function parseCSV(text) {
             return cell.trim();
         });
     });
+}
+
+function collectYears(rows) {
+    var seen = {};
+    rows.slice(1).forEach(function (cells) {
+        var year = cells[YEAR_COL];
+        if (year !== undefined && year !== '') seen[year] = true;
+    });
+    return Object.keys(seen).sort(function (a,b) {
+        return a.localeCompare(b, undefined, { numeric: true });
+    });
+}
+
+function buildYearDropdowns() {
+    var from = document.getElementById('from-year');
+    var to = document.getElementById('to-year');
+
+    allYears.forEach(function (year) {
+        var o1 = document.createElement('option');
+        o1.value = year;
+        o1.textContent = year;
+        from.appendChild(o1);
+
+        var o2 = document.createElement('option');
+        o2.value = year;
+        o2.textContent = year;
+        to.appendChild(o2);
+    });
+
+    from.value = allYears[0]; // full range as default
+    to.value = allYears[allYears.length - 1];
+
+    // year filtering
+    document.getElementById('from-year').addEventListener('change', draw);
+    document.getElementById('to-year').addEventListener('change', draw);
 }
 
 function buildDropdown() {
@@ -57,7 +97,11 @@ function buildDropdown() {
     // when user picks a different option, redraw
     select.addEventListener('change', draw);
 
+    // Event listeners:
+    // exclude board of supervisors checkbox
     document.getElementById('exclude-bos').addEventListener('change', draw);
+    
+    // split and stack filters
     document.getElementById('split-select').addEventListener('change', draw);
     document.getElementById('stack-select').addEventListener('change', draw);
 
@@ -102,10 +146,31 @@ function draw() {
     document.getElementById('stack-wrap').hidden = (splitKey === 'none');
     var stackMode = document.getElementById('stack-select').value;
 
-    updateURL(key, excludeBOS, splitKey, stackMode);
+    var fromYear = document.getElementById('from-year').value;
+    var toYear = document.getElementById('to-year').value;
 
-    var result = countGrid(allRows, view.columns, splitCols, excludeBOS, view.sort);
+    updateURL(key, excludeBOS, splitKey, stackMode, fromYear, toYear);
+
+    var rows = filterByYear(allRows, fromYear, toYear); // filter by year first
+    var result = countGrid(rows, view.columns, splitCols, excludeBOS, view.sort);
     renderChart(result.labels, result.series, view.label, splitKey === 'none' ? 'grouped' : stackMode);
+}
+
+function filterByYear(rows, fromYear, toYear) {
+    // debug log
+    // console.log('filterByYear got:', fromYear, toYear, 'types:', typeof fromYear, typeof toYear);
+
+    var header = rows[0]; // extract headers
+    var body = rows.slice(1).filter(function (cells) {
+        var year = cells[YEAR_COL];
+
+        return year.localeCompare(fromYear, undefined, { numeric: true }) >= 0 &&
+               year.localeCompare(toYear,   undefined, { numeric: true }) <= 0;
+
+    });
+    // console.log('filtered from', rows.length, 'to', body.length + 1, 'rows');
+    // put headers back, making sure we preserve the headers for countGrid
+    return [header].concat(body);
 }
 
 function countGrid(rows, groupCols, splitCols, excludeBOS, sortMode) {
@@ -130,7 +195,7 @@ function countGrid(rows, groupCols, splitCols, excludeBOS, sortMode) {
         // every split value this row contributes to
         var splitValues = [];
         if (splitCols === null) {
-            splitValues.push('Number of reports');
+            splitValues.push('Appearances');
         } else {
             splitCols.forEach(function (ci) {
                 if (keep(cells[ci])) splitValues.push(cells[ci]);
@@ -243,11 +308,13 @@ function renderTable(rows) {
 }
 
 // Write: put the current control state in address bar
-function updateURL(key, excludeBOS, splitKey, stackMode) {
+function updateURL(key, excludeBOS, splitKey, stackMode, fromYear, toYear) {
     var params = new URLSearchParams();
     params.set('view', key);
     params.set('split', splitKey);
     params.set('stack', stackMode);
+    params.set('from', fromYear);
+    params.set('to', toYear);
 
     if (excludeBOS) params.set('excludeBOS', 'true');
     var newURL = window.location.pathname + '?' + params.toString()
@@ -261,7 +328,9 @@ function readURL() {
         view: params.get('view'),
         split: params.get('split'),
         stack: params.get('stack'),
-        excludeBOS: params.get('excludeBOS') === 'true'
+        excludeBOS: params.get('excludeBOS') === 'true',
+        from: params.get('from'),
+        to: params.get('to')
     };
 }
 
@@ -284,6 +353,14 @@ function applyURL() {
     }
 
     document.getElementById('exclude-bos').checked = state.excludeBOS;
+
+    if (state.from && document.querySelector('#from-year option[value="' + state.from + '"]')) {
+        document.getElementById('from-year').value = state.from;
+    }
+
+    if (state.to && document.querySelector('#to-year option[value="' + state.to + '"]')) {
+        document.getElementById('to-year').value = state.to;
+    }
 }
 
 // prototype counting now deprecated

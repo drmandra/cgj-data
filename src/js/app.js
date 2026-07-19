@@ -260,6 +260,7 @@ function renderChart(labels, series, title, stackMode) {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
         options: {
+            indexAxis: 'y',
             plugins: {
                 title: { display: true, text: 'Reports by ' + title },
                 legend: { display: datasets.length > 1 },
@@ -275,13 +276,13 @@ function renderChart(labels, series, title, stackMode) {
                 }
             },
             scales: {
-                x: { stacked: stacked },
-                y: {
+                x: {
                     stacked: stacked,
                     beginAtZero: true,
                     max: percent ? 100 : undefined,
                     ticks: percent ? { callback: function(v) { return v + '%'; } } : { precision: 0 }
-                }
+                },
+                y: { stacked: stacked }
             }
         }
     });

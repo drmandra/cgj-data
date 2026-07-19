@@ -28,6 +28,19 @@ th {
     background: #f0f0f0;
 }
 
+details {
+    margin-top: 24px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 13px 16px;
+    background: #fff;
+}
+
+summary { 
+    curser: pointer;
+    font-weight: 600;
+}
+
 .subtitle {
     color: #666;
     margin-top: 0;

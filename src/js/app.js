@@ -232,8 +232,17 @@ function countGrid(rows, groupCols, splitCols, excludeBOS, sortMode) {
 }
 
 function renderChart(labels, series, title, stackMode) {
+    console.log('labels length:', labels.length, 'labels:', labels);
+
     var canvas = document.getElementById('chart');
     if (chart) chart.destroy();
+
+    // give each category a vertical slice so labels never collide
+    var pxPerBar = 14;
+    var minHeight = 200;
+    var barsPerGroup = series.length;
+    var innerHeight = Math.max(minHeight, labels.length * pxPerBar * barsPerGroup);
+    canvas.parentNode.style.height = innerHeight + 'px';
 
     var percent = (stackMode === 'percent');
     var stacked = (stackMode === 'stacked' || percent);
@@ -261,9 +270,17 @@ function renderChart(labels, series, title, stackMode) {
         data: { labels: labels, datasets: datasets },
         options: {
             indexAxis: 'y',
+            maintainAspectRatio: false,
+            responsive: true,
+            datasets: {
+                bar: {
+                    barPercentage: 1.0,
+                    categoryPercentage: 0.9
+                }
+            },
             plugins: {
                 title: { display: true, text: 'Reports by ' + title },
-                legend: { display: datasets.length > 1 },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function (ctx) {
@@ -278,6 +295,7 @@ function renderChart(labels, series, title, stackMode) {
             scales: {
                 x: {
                     stacked: stacked,
+                    position: 'top',
                     beginAtZero: true,
                     max: percent ? 100 : undefined,
                     ticks: percent ? { callback: function(v) { return v + '%'; } } : { precision: 0 }

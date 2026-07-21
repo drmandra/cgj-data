@@ -581,7 +581,7 @@ function renderReportTable(rows, containerId) {
         tr.appendChild(titleTd);
 
         var linkTd = document.createElement('td');
-        [cells[LINK1_COL], cells[LINK2_COL], [LINK3_COL]].forEach(function (url, i) {
+        [cells[LINK1_COL], cells[LINK2_COL], cells[LINK3_COL]].forEach(function (url, i) {
             if (url && url !== '') {
                 var a = document.createElement('a');
                 a.href = url;

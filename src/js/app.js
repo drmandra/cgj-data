@@ -286,6 +286,27 @@ function renderChart(labels, series, title, stackMode) {
         data: { labels: labels, datasets: datasets },
         options: {
             indexAxis: 'y',
+            onClick: function (event, elements) {
+                if (!elements.length) return;
+
+                var el = elements[0];
+                var groupValue = chart.data.labels[el.index];
+                var seriesValue = chart.data.datasets[el.datasetIndex].label;
+
+                var groupKey = document.getElementById('view-select').value;
+                var splitKey = document.getElementById('split-select').value;
+
+                if (splitKey === 'none') {
+                    // single series
+                    showReports(null, null,
+                                VIEWS[groupKey].columns, groupValue,
+                                'overview-report-list');
+                } else {
+                    showReports(VIEWS[groupKey].columns[0], groupValue,
+                                VIEWS[splitKey].columns, seriesValue,
+                                'overview-report-list');
+                }
+            },
             maintainAspectRatio: false,
             responsive: true,
             datasets: {
@@ -350,6 +371,7 @@ function renderTable(rows) {
 var drillChart = null;
 
 // Two field menus. X can be any field, Y excludes Year and X
+// constants
 var DRILL_X_FIELDS = ['year', 'category', 'entity', 'location'];
 var DRILL_Y_FIELDS = ['category', 'entity', 'location'];
 
@@ -483,6 +505,21 @@ function renderDrillChart(labels, values, title) {
         },
         options: {
             indexAxis: 'y',
+            onClick: function (event, elements) {
+                if (!elements.length) return;
+
+                var yValue = drillChart.data.labels[elements[0].index];
+
+                var xKey = document.getElementById('drill-x').value;
+                var yKey = document.getElementById('drill-y').value;
+                var xValue = document.getElementById('drill-value').value;
+
+                showReports(
+                    VIEWS[xKey].columns[0], xValue,
+                    VIEWS[yKey].columns, yValue,
+                    'drill-report-list'
+                );
+            },
             maintainAspectRatio: false,
             plugins: {
                 title: { display: true, text: title },
@@ -496,6 +533,76 @@ function renderDrillChart(labels, values, title) {
     });
 }
 
+/* ============================================================
+   REPORT LIST (shared by both charts)
+   Given the field/value context of a clicked bar, find the
+   matching reports and render them (title + links) into a
+   given container, then scroll it into view.
+   ============================================================ */
+// Constants
+var TITLE_COL = 1;
+var LINK1_COL = 7;
+var LINK2_COL = 8;
+var LINK3_COL = 9;
+
+// Find rows matching the clicked bar, render them and scroll to them
+// xCol/xValue: the field+value being held fixed (may be null if none)
+// yCols/yValue: the field+value the clicked bar represents
+// containerId: which report list to fill
+function showReports(xCol, xValue, yCols, yValue, containerId) {
+    var matches = allRows.slice(1).filter(function (cells) {
+        var x0k = (xCol === null) || (cells[xCol] === xValue);
+        var y0k = yCols.some(function (c) { return cells[c] === yValue; });
+        return x0k && y0k;
+    });
+
+    renderReportTable(matches, containerId);
+
+    // scroll to table
+    document.getElementById(containerId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderReportTable(rows, containerId) {
+    var container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    var heading = document.createElement('p');
+    heading.textContent = rows.length + ' report' + (rows.length === 1 ? '' : 's');
+    container.appendChild(heading);
+
+    if (!rows.length) return;
+
+    var table = document.createElement('table');
+    rows.forEach(function (cells) {
+        var tr = document.createElement('tr');
+
+        var titleTd = document.createElement('td');
+        titleTd.textContent = cells[TITLE_COL];
+        tr.appendChild(titleTd);
+
+        var linkTd = document.createElement('td');
+        [cells[LINK1_COL], cells[LINK2_COL], [LINK3_COL]].forEach(function (url, i) {
+            if (url && url !== '') {
+                var a = document.createElement('a');
+                a.href = url;
+
+                if (i === 2) { linkString = 'Response 2'; }
+                else if (i === 1) { linkString = 'Reponse 1'; }
+                else { linkString = 'Report'; }
+
+                a.textContent = linkString;
+                a.target = '_blank';
+                a.rel = 'noopener';
+                linkTd.appendChild(a);
+                linkTd.appendChild(document.createTextNode(' '));
+            }
+        });
+        tr.appendChild(linkTd);
+
+        table.appendChild(tr);
+    });
+    container.appendChild(table);
+}
 
 
 /* ============================================================

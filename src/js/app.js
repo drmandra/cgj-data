@@ -14,8 +14,10 @@ var VIEWS = {
     location: { label: 'Location', columns: [6],    sort: 'count' }
 };
 // keeping these in case I like them more
-var COLORS = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00',
-             '#cab2d6','#6a3d9a','#ffff99','#b15928']; 
+// var COLORS = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00',
+//              '#cab2d6','#6a3d9a','#ffff99','#b15928']; 
+var COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2','#59a14f', '#edc948', '#b07aa1', 
+              '#ff9da7', '#9c755f', '#b9b1ad']
 var YEAR_COL = 0;
 
 // Code
@@ -30,15 +32,19 @@ fetch('data/' + DATA_FILE_NAME)
         // parse
         allRows = parseCSV(text);
         allYears = collectYears(allRows);
-        // view 1
+        
+        // build everything first
         buildDropdown();
         buildYearDropdowns();
-        applyURL();
-        draw();
-        // view 2
         buildDrillX();
         rebuildDrillY();
         rebuildDrillValues();
+
+        // apply URL
+        applyURL();
+
+        // draw charts
+        draw();
         drawDrill();
     })
     .catch(function (error) {
@@ -164,7 +170,7 @@ function draw() {
     var fromYear = document.getElementById('from-year').value;
     var toYear = document.getElementById('to-year').value;
 
-    updateURL(key, excludeBOS, splitKey, stackMode, fromYear, toYear);
+    updateURL();
 
     var rows = filterByYear(allRows, fromYear, toYear); // filter by year first
     var result = countGrid(rows, view.columns, splitCols, excludeBOS, view.sort);
@@ -257,7 +263,7 @@ function renderChart(labels, series, title, stackMode) {
     var stacked = (stackMode === 'stacked' || percent);
 
     // give each category a vertical slice so labels never collide
-    var pxPerBar = (percent || stacked) ? 5 : 48;
+    var pxPerBar = (percent || stacked) ? 4 : 52;
     var minHeight = 200;
     var barsPerGroup = series.length;
     var innerHeight = Math.max(minHeight, labels.length * pxPerBar * barsPerGroup);
@@ -311,7 +317,7 @@ function renderChart(labels, series, title, stackMode) {
             responsive: true,
             datasets: {
                 bar: {
-                    barPercentage: 1.0,
+                    barPercentage: 0.9,
                     categoryPercentage: 0.9
                 }
             },
@@ -482,18 +488,18 @@ function drawDrill() {
     var xCol = VIEWS[xKey].columns[0];
     var yCols = VIEWS[yKey].columns;
 
+    updateURL();
+
     var result = countRanked(allRows, xCol, xValue, yCols);
     renderDrillChart(result.labels, result.values,
                     VIEWS[yKey].label + ' in ' + VIEWS[xKey].label + ' = ' + xValue);
-
-    // updateURL will go here eventually
 }
 
 function renderDrillChart(labels, values, title) {
     var canvas = document.getElementById('drill-chart');
     if (drillChart) drillChart.destroy();
 
-    var pxPerBar = 14;
+    var pxPerBar = 52;
     var minHeight = 200;
     canvas.parentNode.style.height = Math.max(minHeight, labels.length * pxPerBar) + 'px';
 
@@ -540,6 +546,7 @@ function renderDrillChart(labels, values, title) {
    given container, then scroll it into view.
    ============================================================ */
 // Constants
+var YEAR_COL = 0;
 var TITLE_COL = 1;
 var LINK1_COL = 7;
 var LINK2_COL = 8;
@@ -576,6 +583,18 @@ function renderReportTable(rows, containerId) {
     rows.forEach(function (cells) {
         var tr = document.createElement('tr');
 
+        var yearTd = document.createElement('td');
+        var a = document.createElement('a');
+        a.href = 'https://www.santacruzcountyca.gov/Departments/GrandJury/' + (cells[YEAR_COL] - 1) +
+        '-' + cells[YEAR_COL] + 'GrandJuryReportsandResponses.aspx';
+        a.textContent = cells[YEAR_COL];
+        a.target = '_blank';
+        a.rel = 'noopener';
+        yearTd.appendChild(a);
+        yearTd.appendChild(document.createTextNode(' '));
+
+        tr.appendChild(yearTd);
+
         var titleTd = document.createElement('td');
         titleTd.textContent = cells[TITLE_COL];
         tr.appendChild(titleTd);
@@ -610,48 +629,57 @@ function renderReportTable(rows, containerId) {
 ============================================================ */
 
 // Write: put the current control state in address bar
-function updateURL(key, excludeBOS, splitKey, stackMode, fromYear, toYear) {
+function updateURL() {
     var params = new URLSearchParams();
-    params.set('view', key);
-    params.set('split', splitKey);
-    params.set('stack', stackMode);
-    params.set('from', fromYear);
-    params.set('to', toYear);
 
-    if (excludeBOS) params.set('excludeBOS', 'true');
-    var newURL = window.location.pathname + '?' + params.toString()
-    history.replaceState(null, '', newURL);
+    // view 1 state
+    params.set('v', document.getElementById('view-select').value);
+    params.set('sp', document.getElementById('split-select').value);
+    params.set('st', document.getElementById('stack-select').value);
+    params.set('from', document.getElementById('from-year').value);
+    params.set('to', document.getElementById('to-year').value);
+    if (document.getElementById('exclude-bos').checked) params.set('excludeBOS', 'true');
+
+    // view 2 state
+    params.set('dx', document.getElementById('drill-x').value);
+    params.set('dy', document.getElementById('drill-y').value);
+    params.set('dval', document.getElementById('drill-value').value);
+
+    history.replaceState(null, '', window.location.pathname + '?' + params.toString());
 }
 
-// Read the url and pull save state out of url
 function readURL() {
     var params = new URLSearchParams(window.location.search);
+
     return {
-        view: params.get('view'),
-        split: params.get('split'),
-        stack: params.get('stack'),
-        excludeBOS: params.get('excludeBOS') === 'true',
+        v: params.get('v'),
+        sp: params.get('sp'),
+        st: params.get('st'),
         from: params.get('from'),
-        to: params.get('to')
+        to: params.get('to'),
+        excludeBOS: params.get('excludeBOS') === 'true',
+        dx: params.get('dx'),
+        dy: params.get('dy'),
+        dval: params.get('dval')
     };
 }
 
-// Set dropdown/checkbox to match URL
 function applyURL() {
     var state = readURL();
 
-    if (state.view && VIEWS[state.view]) { // make sure it's a real view
-        document.getElementById('view-select').value = state.view;
+    // View 1
+    if (state.v && VIEWS[state.v]) { // make sure it's a real view
+        document.getElementById('view-select').value = state.v;
     }
 
     rebuildSplitOptions(document.getElementById('view-select').value);
 
-    if (state.split && document.querySelector('#split-select option[value="' + state.split + '"]')) {      
-        document.getElementById('split-select').value = state.split;
+    if (state.sp && document.querySelector('#split-select option[value="' + state.sp + '"]')) {      
+        document.getElementById('split-select').value = state.sp;
     }
 
-    if (state.stack === 'grouped' || state.stack === 'stacked' || state.stack === 'percent') {
-        document.getElementById('stack-select').value = state.stack;     
+    if (state.st === 'grouped' || state.st === 'stacked' || state.st === 'percent') {
+        document.getElementById('stack-select').value = state.st;     
     }
 
     document.getElementById('exclude-bos').checked = state.excludeBOS;
@@ -663,7 +691,79 @@ function applyURL() {
     if (state.to && document.querySelector('#to-year option[value="' + state.to + '"]')) {
         document.getElementById('to-year').value = state.to;
     }
+
+    // View 2
+    if (state.dx && VIEWS[state.dx]) {
+        document.getElementById('drill-x').value = state.dx;
+    }
+
+    rebuildDrillY();
+    rebuildDrillValues();
+
+    if (state.dy && document.querySelector('#drill-y option[value="' + state.dy + '"]')) {
+        document.getElementById('drill-y').value = state.dy;
+    }
+
+    if (state.dval && document.querySelector('#drill-value option[value="' + state.dval + '"]')) {
+        document.getElementById('drill-value').value = state.dval;
+    }
 }
+
+// old urls
+// function updateURL(key, excludeBOS, splitKey, stackMode, fromYear, toYear) {
+//     var params = new URLSearchParams();
+//     params.set('view', key);
+//     params.set('split', splitKey);
+//     params.set('stack', stackMode);
+//     params.set('from', fromYear);
+//     params.set('to', toYear);
+
+//     if (excludeBOS) params.set('excludeBOS', 'true');
+//     var newURL = window.location.pathname + '?' + params.toString()
+//     history.replaceState(null, '', newURL);
+// }
+
+// // Read the url and pull save state out of url
+// function readURL() {
+//     var params = new URLSearchParams(window.location.search);
+//     return {
+//         view: params.get('view'),
+//         split: params.get('split'),
+//         stack: params.get('stack'),
+//         excludeBOS: params.get('excludeBOS') === 'true',
+//         from: params.get('from'),
+//         to: params.get('to')
+//     };
+// }
+
+// // Set dropdown/checkbox to match URL
+// function applyURL() {
+//     var state = readURL();
+
+//     if (state.view && VIEWS[state.view]) { // make sure it's a real view
+//         document.getElementById('view-select').value = state.view;
+//     }
+
+//     rebuildSplitOptions(document.getElementById('view-select').value);
+
+//     if (state.split && document.querySelector('#split-select option[value="' + state.split + '"]')) {      
+//         document.getElementById('split-select').value = state.split;
+//     }
+
+//     if (state.stack === 'grouped' || state.stack === 'stacked' || state.stack === 'percent') {
+//         document.getElementById('stack-select').value = state.stack;     
+//     }
+
+//     document.getElementById('exclude-bos').checked = state.excludeBOS;
+
+//     if (state.from && document.querySelector('#from-year option[value="' + state.from + '"]')) {
+//         document.getElementById('from-year').value = state.from;
+//     }
+
+//     if (state.to && document.querySelector('#to-year option[value="' + state.to + '"]')) {
+//         document.getElementById('to-year').value = state.to;
+//     }
+// }
 
 // prototype counting now deprecated
 // function countAcrossColumns(rows, colIndexes, excludeBOS, sortMode) {

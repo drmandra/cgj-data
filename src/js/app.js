@@ -13,8 +13,9 @@ var VIEWS = {
     entity:   { label: 'Entity',   columns: [4, 5], sort: 'count' },
     location: { label: 'Location', columns: [6],    sort: 'count' }
 };
+// keeping these in case I like them more
 var COLORS = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00',
-              '#cab2d6','#6a3d9a','#ffff99','#b15928'];
+             '#cab2d6','#6a3d9a','#ffff99','#b15928']; 
 var YEAR_COL = 0;
 
 // Code
@@ -238,7 +239,7 @@ function renderChart(labels, series, title, stackMode) {
     if (chart) chart.destroy();
 
     // give each category a vertical slice so labels never collide
-    var pxPerBar = 12;
+    var pxPerBar = 5;
     var minHeight = 200;
     var barsPerGroup = series.length;
     var innerHeight = Math.max(minHeight, labels.length * pxPerBar * barsPerGroup);
@@ -246,7 +247,6 @@ function renderChart(labels, series, title, stackMode) {
 
     var percent = (stackMode === 'percent');
     var stacked = (stackMode === 'stacked' || percent);
-    var sideBySide = !stacked; // grouped mode needed for labels
 
     // 100% mode needs total to convert into shares
     var columnTotals = labels.map(function (_, i) {
@@ -266,8 +266,6 @@ function renderChart(labels, series, title, stackMode) {
         };
     });
 
-    Chart.register(ChartDataLabels);
-
     chart = new Chart(canvas, {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
@@ -283,18 +281,7 @@ function renderChart(labels, series, title, stackMode) {
             },
             plugins: {
                 title: { display: true, text: 'Reports by ' + title },
-                legend: { display: false },
-                datalabels: {
-                    anchor: 'end',
-                    align: 'end',
-                    display: function (context) {
-                        if (!sideBySide) return false; // hide labels if we're not in side by side
-                        return context.dataset.rawCounts[context.dataIndex] !== 0;
-                    },
-                    formatter: function (value, context) {
-                        return context.dataset.label + ': ' + value;
-                    },
-                },
+                legend: { display: true },
                 tooltip: {
                     callbacks: {
                         label: function (ctx) {

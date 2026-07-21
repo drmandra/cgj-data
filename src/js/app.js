@@ -27,17 +27,25 @@ var allYears = [];
 fetch('data/' + DATA_FILE_NAME)
     .then(function (response) { return response.text(); })
     .then(function (text) {
+        // parse
         allRows = parseCSV(text);
         allYears = collectYears(allRows);
+        // view 1
         buildDropdown();
         buildYearDropdowns();
         applyURL();
         draw();
+        // view 2
+        buildDrillX();
+        rebuildDrillY();
+        rebuildDrillValues();
+        drawDrill();
     })
     .catch(function (error) {
         console.error(error);
         document.getElementById('error').textContent = 'Error: ' + error;
     });
+
 
 function parseCSV(text) {
     var clean = text.trim().replace(/\r/g, ''); // drop trailing carriage return
@@ -60,6 +68,12 @@ function collectYears(rows) {
         return a.localeCompare(b, undefined, { numeric: true });
     });
 }
+
+
+/* ============================================================
+   QUICK-GLACE VIEW
+   Aka View 1. Charts meant for quick glance
+============================================================ */
 
 function buildYearDropdowns() {
     var from = document.getElementById('from-year');
@@ -233,20 +247,21 @@ function countGrid(rows, groupCols, splitCols, excludeBOS, sortMode) {
 }
 
 function renderChart(labels, series, title, stackMode) {
-    console.log('labels length:', labels.length, 'labels:', labels);
+    // console.log('labels length:', labels.length, 'labels:', labels);
 
     var canvas = document.getElementById('chart');
     if (chart) chart.destroy();
 
+
+    var percent = (stackMode === 'percent');
+    var stacked = (stackMode === 'stacked' || percent);
+
     // give each category a vertical slice so labels never collide
-    var pxPerBar = 5;
+    var pxPerBar = (percent || stacked) ? 5 : 48;
     var minHeight = 200;
     var barsPerGroup = series.length;
     var innerHeight = Math.max(minHeight, labels.length * pxPerBar * barsPerGroup);
     canvas.parentNode.style.height = innerHeight + 'px';
-
-    var percent = (stackMode === 'percent');
-    var stacked = (stackMode === 'stacked' || percent);
 
     // 100% mode needs total to convert into shares
     var columnTotals = labels.map(function (_, i) {
@@ -326,6 +341,166 @@ function renderTable(rows) {
     output.innerHTML = ''; // clear our 'Loading..' text
     output.appendChild(table);
 }
+
+
+/* ============================================================
+   DRILL-DOWN VIEW
+   Aka View 2 and independent of View 1
+============================================================ */
+var drillChart = null;
+
+// Two field menus. X can be any field, Y excludes Year and X
+var DRILL_X_FIELDS = ['year', 'category', 'entity', 'location'];
+var DRILL_Y_FIELDS = ['category', 'entity', 'location'];
+
+// Filter rows to those where X field equals xValue and count the Y field's 
+// values and return themn sorted high-to-low
+function countRanked(rows, xCol, xValue, yCols) { 
+    var tally = {};
+    var order = [];
+
+    rows.slice(1).forEach(function (cells) {
+        if (cells[xCol] !== xValue) return;   // keep only chosen X value
+
+        yCols.forEach(function (yCol) {
+            var value = cells[yCol];
+            if (value === undefined || value === '') return;
+            if (!(value in tally)) { tally[value] = 0; order.push(value); }
+            tally[value] += 1;
+        });
+    });
+
+    order.sort(function (a,b) {
+        return (tally[b] - tally[a]) || a.localeCompare(b);
+    });
+
+    return {
+        labels: order,
+        values: order.map(function (v) { return tally[v]; })
+    };
+}
+
+// Build X menu once as its options never change
+function buildDrillX() {
+    var sel = document.getElementById('drill-x');
+    DRILL_X_FIELDS.forEach(function (key) {
+        var o = document.createElement('option');
+        o.value = key;
+        o.textContent = VIEWS[key].label;
+        sel.appendChild(o)
+    });
+
+    sel.addEventListener('change', onDrillXChange);
+}
+
+// Y menu: all DRILL_Y_FIELDS except what is currently X
+function rebuildDrillY() {
+    var xKey = document.getElementById('drill-x').value;
+    var sel = document.getElementById('drill-y');
+    var previous = sel.val;
+    sel.innerHTML = '';
+
+    DRILL_Y_FIELDS.forEach(function (key) {
+        if (key === xKey) return;
+        var o = document.createElement('option');
+        o.value = key;
+        o.textContent = VIEWS[key].label;
+        sel.appendChild(o);
+    });
+
+    var stillThere = sel.querySelector('option[value="' + previous + '"]');
+    sel.value = stillThere ? previous : sel.options[0].value;
+    sel.onchange = drawDrill;
+}
+
+// Value menu: the distinct values of the current X field
+function rebuildDrillValues() {
+    var xKey = document.getElementById('drill-x').value;
+    var xCol = VIEWS[xKey].columns[0];
+    var sel = document.getElementById('drill-value');
+    var previous = sel.value;
+    sel.innerHTML = '';
+
+    var seen = {}, vals = [];
+    allRows.slice(1).forEach(function (cells) {
+        var v = cells[xCol];
+
+        if (v !== undefined && v !== '' && !(v in seen)) { seen[v] = true; vals.push(v); }
+    });
+
+    vals.sort(function (a,b) { 
+        return a.localeCompare(b, undefined, { numeric: true });
+    });
+
+    vals.forEach(function (v) {
+        var o = document.createElement('option');
+        o.value = v;
+        o.textContent = v;
+        sel.appendChild(o);
+    });
+
+    var stillThere = sel.querySelector('option[value="' + previous + '"]');
+    sel.value = stillThere ? previous : sel.options[0].value;
+    sel.onchange = drawDrill;
+}
+
+// When X changes rebuild BOTH dependent menus then redraw
+function onDrillXChange() {
+    rebuildDrillY();
+    rebuildDrillValues();
+    drawDrill();
+}
+
+// Drawing/rendering
+function drawDrill() {
+    var xKey = document.getElementById('drill-x').value;
+    var yKey = document.getElementById('drill-y').value;
+    var xValue = document.getElementById('drill-value').value;
+
+    var xCol = VIEWS[xKey].columns[0];
+    var yCols = VIEWS[yKey].columns;
+
+    var result = countRanked(allRows, xCol, xValue, yCols);
+    renderDrillChart(result.labels, result.values,
+                    VIEWS[yKey].label + ' in ' + VIEWS[xKey].label + ' = ' + xValue);
+
+    // updateURL will go here eventually
+}
+
+function renderDrillChart(labels, values, title) {
+    var canvas = document.getElementById('drill-chart');
+    if (drillChart) drillChart.destroy();
+
+    var pxPerBar = 14;
+    var minHeight = 200;
+    canvas.parentNode.style.height = Math.max(minHeight, labels.length * pxPerBar) + 'px';
+
+    drillChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'Count', data: values, backgroundColor: COLORS[0] }]
+        },
+        options: {
+            indexAxis: 'y',
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: title },
+                legend: { display: false }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { precision: 0 } },
+                y: {}
+            }
+        }
+    });
+}
+
+
+
+/* ============================================================
+   URL FUNCTIONS
+============================================================ */
 
 // Write: put the current control state in address bar
 function updateURL(key, excludeBOS, splitKey, stackMode, fromYear, toYear) {

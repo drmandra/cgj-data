@@ -12,6 +12,7 @@
     <h1>CGJ Report Charts</h1>
     <p class="subtitle">Explore CGJ data</p>
 
+    <!-- View 1 -->
     <div class="controls">
         <label for="from-year">From:</label>
         <select id="from-year"></select>
@@ -50,6 +51,36 @@
         <p id="error"></p>
     </div>
 
+    <!-- View 2 -->
+    <hr />
+    <h2>Drill down</h2>
+    <p class="subtitle">Pick one field, then rank another within it.</p>
+
+    <div class="controls">
+        <label for="drill-x">Pick a</label>
+        <select id="drill-x"></select>
+
+        <span class="drill-arrow">→ rank its</span>
+
+        <select id="drill-y"></select>
+    </div>
+
+    <div class="controls">
+        <label for="drill-value">Which:</label>
+        <select id="drill-value"></select>
+    </div>
+
+    <div class="panel">
+        <div class="chart-scroll">
+            <div class="chart-inner">
+                <canvas id="drill-chart"></canvas>
+            </div>
+        </div>
+        <p id='drill-error'></p>
+    </div>
+
+
+    <!-- README box -->
     <details id="readme-box">
         <summary>About this data</summary>
         <div id="readme-content">Loading...</div>

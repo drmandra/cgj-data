@@ -580,6 +580,7 @@ function renderReportTable(rows, containerId) {
     if (!rows.length) return;
 
     var table = document.createElement('table');
+
     rows.forEach(function (cells) {
         var tr = document.createElement('tr');
 
